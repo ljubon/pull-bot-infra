@@ -1,0 +1,3 @@
+name: pull-bot-infra
+runtime: nodejs
+description: Run pull bot as a docker container
