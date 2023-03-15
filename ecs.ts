@@ -34,7 +34,8 @@ export function createECSResources(): ECSResources {
             },
             taskDefinitionArgs: {
                 container: {
-                    image: "nginx:latest",
+                    name: "pullbot:latest",
+                    image: "ghcr.io/ljubon/pull/pull:latest",
                     cpu: 512,
                     memory: 128,
                     essential: true,
