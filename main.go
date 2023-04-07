@@ -18,12 +18,8 @@ const VPC_ID = "vpc-0fbca88fc6fab7a0f"
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
-		vpc, err := ec2.NewDefaultVpc(ctx, "pullbot-vpc", &ec2.DefaultVpcArgs{})
-		if err != nil {
-			return err
-		}
 		securityGroup, err := ec2.NewDefaultSecurityGroup(ctx, "pullbot-security-group", &ec2.DefaultSecurityGroupArgs{
-			VpcId: pulumi.String(vpc.Id),
+			VpcId: pulumi.String(VPC_ID),
 			Egress: ec2.DefaultSecurityGroupEgressArray{
 				ec2.DefaultSecurityGroupEgressArgs{
 					FromPort: pulumi.Int(0),
@@ -38,6 +34,9 @@ func main() {
 				},
 			},
 		})
+		if err != nil {
+			return err
+		}
 		cluster, err := ecs.NewCluster(ctx, "pull-pulumi-cluster", nil)
 		if err != nil {
 			return err
@@ -51,7 +50,15 @@ func main() {
 			DesiredCount: pulumi.Int(5),
 			NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
 				SecurityGroups: pulumi.StringArray{
-					pulumi.ID(securityGroup.ID()),
+					securityGroup.ID(),
+				},
+				Subnets: pulumi.StringArray{
+					pulumi.String("subnet-02c6606e6327a2524"),
+					pulumi.String("subnet-0e8a610a8547bd5a1"),
+					pulumi.String("subnet-026cf2674f7b9e008"),
+					pulumi.String("subnet-06999ccd7f8a4d538"),
+					pulumi.String("subnet-0a278c1c001e0608e"),
+					pulumi.String("subnet-0ac5a47ac46d2a3d8"),
 				},
 			},
 			TaskDefinitionArgs: &awsxEcs.EC2ServiceTaskDefinitionArgs{
