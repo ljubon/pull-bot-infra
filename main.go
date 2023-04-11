@@ -1,18 +1,16 @@
 package main
 
 import (
-	"strconv"
-
 	"encoding/base64"
-
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/autoscaling"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/lb"
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"strconv"
 	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
 	awsxLb "github.com/pulumi/pulumi-awsx/sdk/go/awsx/lb"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 const PULL_CONTAINER = "ghcr.io/ljubon/pull/pull:latest"
@@ -27,7 +25,7 @@ const SERVICE_NAME = "pull-pulumi-service"
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 
-		encodedUserData := pulumi.All(CLUSTER_NAME).ApplyT(func(args []interface{}) (string, error) {
+		encodedUserData := pulumi.All("pull-pulumi-cluster").ApplyT(func(args []interface{}) (string, error) {
 			userData := "echo ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config"
 			return base64.StdEncoding.EncodeToString([]byte(userData)), nil
 		}).(pulumi.StringOutput)
@@ -78,7 +76,7 @@ func main() {
 		cluster, err := ecs.NewCluster(ctx, CLUSTER_NAME, &ecs.ClusterArgs{
 			Name: pulumi.String(CLUSTER_NAME),
 			CapacityProviders: pulumi.StringArray{
-				capacityProvider.Name, // Use the capacityProvider's Name instead of autoScalingGroup's Arn
+				capacityProvider.Name,
 			},
 		})
 		if err != nil {
