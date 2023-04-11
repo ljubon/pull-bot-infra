@@ -24,7 +24,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		loadBalancer, err := awsxLb.NewApplicationLoadBalancer(ctx, "lb", &awsxLb.ApplicationLoadBalancerArgs {
+		loadBalancer, err := awsxLb.NewApplicationLoadBalancer(ctx, "lb", &awsxLb.ApplicationLoadBalancerArgs{
 			DefaultTargetGroupPort: pulumi.Int(3000),
 		})
 		if err != nil {
@@ -68,7 +68,7 @@ func main() {
 						awsxEcs.TaskDefinitionPortMappingArgs{
 							ContainerPort: pulumi.Int(3000),
 							HostPort:      pulumi.Int(3000),
-							Protocol: pulumi.String("tcp"),
+							Protocol:      pulumi.String("tcp"),
 							TargetGroup:   loadBalancer.DefaultTargetGroup,
 						},
 					},
