@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/lb"
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
@@ -15,28 +14,10 @@ const BUCKET = "arn:aws:s3:::pullbot-envs/.env"
 const PRIVATE_KEY = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
 const TASK_ROLE = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
 const VPC_ID = "vpc-0fbca88fc6fab7a0f"
+const SECURITY_GROUP_ID = "sg-01a8e31f04b83e53d"
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
-		securityGroup, err := ec2.NewDefaultSecurityGroup(ctx, "pullbot-security-group", &ec2.DefaultSecurityGroupArgs{
-			VpcId: pulumi.String(VPC_ID),
-			Egress: ec2.DefaultSecurityGroupEgressArray{
-				ec2.DefaultSecurityGroupEgressArgs{
-					FromPort: pulumi.Int(0),
-					ToPort:   pulumi.Int(0),
-					Protocol: pulumi.String("-1"),
-					CidrBlocks: pulumi.StringArray{
-						pulumi.String("0.0.0.0/0"),
-					},
-					Ipv6CidrBlocks: pulumi.StringArray{
-						pulumi.String("::/0"),
-					},
-				},
-			},
-		})
-		if err != nil {
-			return err
-		}
 		cluster, err := ecs.NewCluster(ctx, "pull-pulumi-cluster", nil)
 		if err != nil {
 			return err
@@ -50,7 +31,7 @@ func main() {
 			DesiredCount: pulumi.Int(5),
 			NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
 				SecurityGroups: pulumi.StringArray{
-					securityGroup.ID(),
+					pulumi.String(SECURITY_GROUP_ID),
 				},
 				Subnets: pulumi.StringArray{
 					pulumi.String("subnet-02c6606e6327a2524"),
