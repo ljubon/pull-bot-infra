@@ -38,6 +38,7 @@ func main() {
 			ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"),
 			InstanceType: pulumi.String("t2.small"),
 			UserData:     encodedUserData,
+			KeyName:      pulumi.String("pullbot"),
 		})
 		if err != nil {
 			return err
@@ -59,7 +60,7 @@ func main() {
 			},
 			DesiredCapacity: pulumi.Int(1),
 			MinSize:         pulumi.Int(1),
-			MaxSize:         pulumi.Int(2),
+			MaxSize:         pulumi.Int(1),
 		})
 		if err != nil {
 			return err
@@ -92,7 +93,7 @@ func main() {
 			return err
 		}
 		_, err = awsxEcs.NewEC2Service(ctx, SERVICE_NAME, &awsxEcs.EC2ServiceArgs{
-			Name: pulumi.String(SERVICE_NAME),
+			// Name: pulumi.String(SERVICE_NAME),
 			Cluster:      cluster.Arn,
 			DesiredCount: pulumi.Int(5),
 			NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
