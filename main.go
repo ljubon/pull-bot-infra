@@ -3,6 +3,8 @@ package main
 import (
 	"strconv"
 
+	"encoding/base64"
+
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/autoscaling"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
@@ -11,8 +13,6 @@ import (
 	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
 	awsxLb "github.com/pulumi/pulumi-awsx/sdk/go/awsx/lb"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"encoding/base64"
-	"fmt"
 )
 
 const PULL_CONTAINER = "ghcr.io/ljubon/pull/pull:latest"
@@ -28,8 +28,7 @@ func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 
 		encodedUserData := pulumi.All(CLUSTER_NAME).ApplyT(func(args []interface{}) (string, error) {
-			clusterName := args[0].(string)
-			userData := fmt.Sprintf("#!/bin/bash\necho ECS_CLUSTER=%s >> /etc/ecs/ecs.config\n", clusterName)
+			userData := "echo ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config"
 			return base64.StdEncoding.EncodeToString([]byte(userData)), nil
 		}).(pulumi.StringOutput)
 
