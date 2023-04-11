@@ -24,7 +24,9 @@ func main() {
 		if err != nil {
 			return err
 		}
-		loadBalancer, err := awsxLb.NewApplicationLoadBalancer(ctx, "lb", nil)
+		loadBalancer, err := awsxLb.NewApplicationLoadBalancer(ctx, "lb", &awsxLb.ApplicationLoadBalancerArgs {
+			DefaultTargetGroupPort: pulumi.Int(3000),
+		})
 		if err != nil {
 			return err
 		}
@@ -48,7 +50,7 @@ func main() {
 				Container: &awsxEcs.TaskDefinitionContainerDefinitionArgs{
 					Image:     pulumi.String(PULL_CONTAINER),
 					Cpu:       pulumi.Int(512),
-					Memory:    pulumi.Int(128),
+					Memory:    pulumi.Int(512),
 					Essential: pulumi.Bool(true),
 					Environment: awsxEcs.TaskDefinitionKeyValuePairArray{
 						awsxEcs.TaskDefinitionKeyValuePairArgs{
@@ -58,7 +60,7 @@ func main() {
 					},
 					EnvironmentFiles: awsxEcs.TaskDefinitionEnvironmentFileArray{
 						awsxEcs.TaskDefinitionEnvironmentFileArgs{
-							Type:  pulumi.String(".env"),
+							Type:  pulumi.String("s3"),
 							Value: pulumi.String(BUCKET),
 						},
 					},
@@ -66,6 +68,7 @@ func main() {
 						awsxEcs.TaskDefinitionPortMappingArgs{
 							ContainerPort: pulumi.Int(3000),
 							HostPort:      pulumi.Int(3000),
+							Protocol: pulumi.String("tcp"),
 							TargetGroup:   loadBalancer.DefaultTargetGroup,
 						},
 					},
