@@ -3,73 +3,77 @@ package main
 import (
 	"encoding/base64"
 
-	"github.com/pulumi/pulumi-aws/sdk/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
 	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-const PULL_CONTAINER = "ghcr.io/ljubon/pull/pull:latest"
-const BUCKET = "arn:aws:s3:::pullbot-envs/.env"
-const PRIVATE_KEY_ARN = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
-const ROLE_ARN = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
-const ROLE_NAME = "ecsTaskExecutionRole"
-const VPC_ID = "vpc-0fbca88fc6fab7a0f"
-const SECURITY_GROUP = "sg-01a8e31f04b83e53d"
-const CLUSTER_NAME = "pull-pulumi-cluster"
-const SERVICE_NAME = "pull-pulumi-service"
+const (
+	PULL_CONTAINER     = "ghcr.io/ljubon/pull/pull:latest"
+	BUCKET             = "arn:aws:s3:::pullbot-envs/.env"
+	PRIVATE_KEY_ARN    = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
+	TASK_ROLE_ARN      = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
+	TASK_ROLE_NAME     = "ecsTaskExecutionRole"
+	ECS_ROLE_ARN       = "arn:aws:iam::341894770476:instance-profile/ecsInstanceRole"
+	ECS_ROLE_NAME      = "ecsInstanceRole"
+	VPC_ID             = "vpc-0fbca88fc6fab7a0f"
+	SECURITY_GROUP     = "sg-01a8e31f04b83e53d"
+	CLUSTER_NAME       = "pull-pulumi-cluster"
+	SERVICE_NAME       = "pull-pulumi-service"
+)
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
+		tags := pulumi.StringMap{
+			"map-migrated": pulumi.String("d-server-01068mdjl5jze3"),
+		}
 
 		encodedUserData := pulumi.All("pull-pulumi-cluster").ApplyT(func(args []interface{}) (string, error) {
-			userData := "echo ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config"
+			userData := "#!bin/bash\necho ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config;"
 			return base64.StdEncoding.EncodeToString([]byte(userData)), nil
 		}).(pulumi.StringOutput)
 
-		// Create an instance profile and associate the IAM role with it
 		instanceProfile, err := iam.NewInstanceProfile(ctx, "pull-pulumi-instance-profile", &iam.InstanceProfileArgs{
 			Name: pulumi.String("pull-pulumi-instance-profile"),
-			Role: pulumi.String(ROLE_NAME),
+			Role: pulumi.String(ECS_ROLE_NAME),
+			Tags: tags,
 		})
 		if err != nil {
 			return err
 		}
 
-		// Create an EC2 launch template
 		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template", &ec2.LaunchTemplateArgs{
 			Name:         pulumi.String("pull-pulumi-launch-template"),
 			ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"),
-			InstanceType: pulumi.String("t2.medium"),
+			InstanceType: pulumi.String("t2.small"),
 			UserData:     encodedUserData,
 			KeyName:      pulumi.String("pullbot"),
-			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileArgs{
-				Name: instanceProfile.Name,
-			},
 			VpcSecurityGroupIds: pulumi.StringArray{
 				pulumi.String(SECURITY_GROUP),
 			},
+			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileArgs{
+				Arn: instanceProfile.Arn,
+			},
+			Tags: tags,
 		})
 		if err != nil {
 			return err
 		}
 
-		// Create an EC2 instace
 		ec2.NewInstance(ctx, "pull-pulumi-instance", &ec2.InstanceArgs{
 			LaunchTemplate: ec2.InstanceLaunchTemplateArgs{
 				Id:      launchTemplate.ID(),
 				Version: pulumi.String("$Latest"),
 			},
 		})
-		if err != nil {
-			return err
-		}
 
 		// Create ECS cluster
 		cluster, err := ecs.NewCluster(ctx, CLUSTER_NAME, &ecs.ClusterArgs{
 			Name: pulumi.String(CLUSTER_NAME),
+			Tags: tags,
 		})
 		if err != nil {
 			return err
@@ -119,13 +123,11 @@ func main() {
 					},
 				},
 				ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
-					RoleArn: pulumi.String(ROLE_ARN),
+					RoleArn: pulumi.String(TASK_ROLE_ARN),
 				},
 			},
+			Tags: tags,
 		})
-		if err != nil {
-			return err
-		}
 
 		return nil
 	})
