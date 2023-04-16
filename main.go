@@ -2,97 +2,87 @@ package main
 
 import (
 	"encoding/base64"
-	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/autoscaling"
+
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
-	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/lb"
+	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"strconv"
 	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
-	awsxLb "github.com/pulumi/pulumi-awsx/sdk/go/awsx/lb"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-const PULL_CONTAINER = "ghcr.io/ljubon/pull/pull:latest"
-const BUCKET = "arn:aws:s3:::pullbot-envs/.env"
-const PRIVATE_KEY_ARN = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
-const TASK_ROLE = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
-const VPC_ID = "vpc-0fbca88fc6fab7a0f"
-const SECURITY_GROUP = "sg-01a8e31f04b83e53d"
-const CLUSTER_NAME = "pull-pulumi-cluster"
-const SERVICE_NAME = "pull-pulumi-service"
+const (
+	PULL_CONTAINER     = "ghcr.io/ljubon/pull/pull:latest"
+	BUCKET             = "arn:aws:s3:::pullbot-envs/.env"
+	PRIVATE_KEY_ARN    = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
+	TASK_ROLE_ARN      = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
+	TASK_ROLE_NAME     = "ecsTaskExecutionRole"
+	ECS_ROLE_ARN       = "arn:aws:iam::341894770476:instance-profile/ecsInstanceRole"
+	ECS_ROLE_NAME      = "ecsInstanceRole"
+	VPC_ID             = "vpc-0fbca88fc6fab7a0f"
+	SECURITY_GROUP     = "sg-01a8e31f04b83e53d"
+	CLUSTER_NAME       = "pull-pulumi-cluster"
+	SERVICE_NAME       = "pull-pulumi-service"
+)
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
+		tags := pulumi.StringMap{
+			"map-migrated": pulumi.String("d-server-01068mdjl5jze3"),
+		}
 
 		encodedUserData := pulumi.All("pull-pulumi-cluster").ApplyT(func(args []interface{}) (string, error) {
-			userData := "echo ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config"
+			userData := "#!bin/bash\necho ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config;"
 			return base64.StdEncoding.EncodeToString([]byte(userData)), nil
 		}).(pulumi.StringOutput)
 
-		// Create an EC2 launch template
+		instanceProfile, err := iam.NewInstanceProfile(ctx, "pull-pulumi-instance-profile", &iam.InstanceProfileArgs{
+			Name: pulumi.String("pull-pulumi-instance-profile"),
+			Role: pulumi.String(ECS_ROLE_NAME),
+			Tags: tags,
+		})
+		if err != nil {
+			return err
+		}
+
 		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template", &ec2.LaunchTemplateArgs{
+			Name:         pulumi.String("pull-pulumi-launch-template"),
 			ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"),
 			InstanceType: pulumi.String("t2.small"),
 			UserData:     encodedUserData,
 			KeyName:      pulumi.String("pullbot"),
+			VpcSecurityGroupIds: pulumi.StringArray{
+				pulumi.String(SECURITY_GROUP),
+			},
+			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileArgs{
+				Arn: instanceProfile.Arn,
+			},
+			Tags: tags,
 		})
 		if err != nil {
 			return err
 		}
 
-		latestVersion := launchTemplate.LatestVersion.ApplyT(func(latestVersion int) string {
-			return strconv.Itoa(latestVersion)
-		}).(pulumi.StringOutput)
-
-		// Create an Auto Scaling group
-		autoScalingGroup, err := autoscaling.NewGroup(ctx, "pull-pulumi-asg", &autoscaling.GroupArgs{
-			AvailabilityZones: pulumi.StringArray{
-				pulumi.String("us-east-1a"),
-				pulumi.String("us-east-1b"),
-			},
-			LaunchTemplate: autoscaling.GroupLaunchTemplateArgs{
+		ec2.NewInstance(ctx, "pull-pulumi-instance", &ec2.InstanceArgs{
+			LaunchTemplate: ec2.InstanceLaunchTemplateArgs{
 				Id:      launchTemplate.ID(),
-				Version: latestVersion,
-			},
-			DesiredCapacity: pulumi.Int(1),
-			MinSize:         pulumi.Int(1),
-			MaxSize:         pulumi.Int(1),
-		})
-		if err != nil {
-			return err
-		}
-
-		// Create the EC2 capacity provider
-		capacityProvider, err := ecs.NewCapacityProvider(ctx, "pull-pulumi-capacity-provider", &ecs.CapacityProviderArgs{
-			AutoScalingGroupProvider: ecs.CapacityProviderAutoScalingGroupProviderArgs{
-				AutoScalingGroupArn: autoScalingGroup.Arn,
+				Version: pulumi.String("$Latest"),
 			},
 		})
-		if err != nil {
-			return err
-		}
 
+		// Create ECS cluster
 		cluster, err := ecs.NewCluster(ctx, CLUSTER_NAME, &ecs.ClusterArgs{
 			Name: pulumi.String(CLUSTER_NAME),
-			CapacityProviders: pulumi.StringArray{
-				capacityProvider.Name,
-			},
+			Tags: tags,
 		})
 		if err != nil {
 			return err
 		}
 
-		loadBalancer, err := awsxLb.NewApplicationLoadBalancer(ctx, "lb", &awsxLb.ApplicationLoadBalancerArgs{
-			DefaultTargetGroupPort: pulumi.Int(3000),
-		})
-		if err != nil {
-			return err
-		}
-		_, err = awsxEcs.NewEC2Service(ctx, SERVICE_NAME, &awsxEcs.EC2ServiceArgs{
-			// Name: pulumi.String(SERVICE_NAME),
+		// Create Service & Task definition in ECS cluster
+		awsxEcs.NewEC2Service(ctx, SERVICE_NAME, &awsxEcs.EC2ServiceArgs{
 			Cluster:      cluster.Arn,
-			DesiredCount: pulumi.Int(5),
+			DesiredCount: pulumi.Int(1),
 			NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
 				SecurityGroups: pulumi.StringArray{
 					pulumi.String(SECURITY_GROUP),
@@ -129,22 +119,16 @@ func main() {
 							ContainerPort: pulumi.Int(3000),
 							HostPort:      pulumi.Int(3000),
 							Protocol:      pulumi.String("tcp"),
-							TargetGroup:   loadBalancer.DefaultTargetGroup,
 						},
 					},
 				},
-				TaskRole: &awsx.DefaultRoleWithPolicyArgs{
-					RoleArn: pulumi.String(TASK_ROLE),
+				ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
+					RoleArn: pulumi.String(TASK_ROLE_ARN),
 				},
 			},
+			Tags: tags,
 		})
-		if err != nil {
-			return err
-		}
 
-		ctx.Export("url", loadBalancer.LoadBalancer.ApplyT(func(loadbal *lb.LoadBalancer) (string, error) {
-			return loadbal.DnsName.ElementType().String(), nil
-		}).(pulumi.StringOutput))
 		return nil
 	})
 }
