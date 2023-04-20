@@ -1,0 +1,75 @@
+name: Pulumi
+on: 
+  push
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Whether workflows is requested or completed'
+        required: true
+        type: choice
+        options:
+        - requested
+        - completed
+      run_id:
+        description: 'Id of the job that triggered the run'
+        required: true
+      job_id:
+        description: 'Id of the job that triggered the run'
+        required: true
+      run_attempt:
+        description: 'Run attempt'
+        required: true
+      label:
+        description: 'Job label'
+        required: true
+jobs:
+  update:
+    name: Update
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - run: npm install
+      - uses: pulumi/actions@v3
+        with:
+          command: up
+          stack-name: Zeddling/dev # When using an individual account, only use stack-name.
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          PULUMI_SKIP_CONFIRMATIONS: "true"
+          PULUMI_SKIP_UPDATE_CHECK: "true"
+          PULUMI_STACK_NAME: pull-${{ github.event.inputs.job_id }}
+          LABEL: ${{ github.event.inputs.label }}
+          OWNER: ${{ github.event.repository.owner.login }}
+          REPO: ${{ github.event.repository.name }}
+        working-directory: pulumi
+        run: |
+          cd aws
+          case ${{ github.event.inputs.action }} in
+            'requested')
+              cp ../../ilgpu/.github/workflows/runners/config.yaml Pulumi.$PULUMI_STACK_NAME.yaml
+              pulumi stack init $PULUMI_STACK_NAME
+              pulumi config set labels $LABEL
+              pulumi config set owner $OWNER
+              pulumi config set repo $REPO
+              pulumi update --diff
+              ;;
+            'completed')
+              pulumi stack select $PULUMI_STACK_NAME
+              pulumi destroy
+              pulumi stack rm
+              npm run cleanup-runners $OWNER $REPO $LABEL
+              ;;
+          esac
