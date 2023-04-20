@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/base64"
+	"math/rand"
+	"time"
 
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
@@ -12,32 +14,46 @@ import (
 )
 
 const (
-	PULL_CONTAINER     = "ghcr.io/ljubon/pull/pull:latest"
-	BUCKET             = "arn:aws:s3:::pullbot-envs/.env"
-	PRIVATE_KEY_ARN    = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
-	TASK_ROLE_ARN      = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
-	TASK_ROLE_NAME     = "ecsTaskExecutionRole"
-	ECS_ROLE_ARN       = "arn:aws:iam::341894770476:instance-profile/ecsInstanceRole"
-	ECS_ROLE_NAME      = "ecsInstanceRole"
-	VPC_ID             = "vpc-0fbca88fc6fab7a0f"
-	SECURITY_GROUP     = "sg-01a8e31f04b83e53d"
-	CLUSTER_NAME       = "pull-pulumi-cluster"
-	SERVICE_NAME       = "pull-pulumi-service"
+	PULL_CONTAINER  = "ghcr.io/ljubon/pull/pull:latest"
+	BUCKET          = "arn:aws:s3:::pullbot-envs/.env"
+	PRIVATE_KEY_ARN = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
+	TASK_ROLE_ARN   = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
+	TASK_ROLE_NAME  = "ecsTaskExecutionRole"
+	ECS_ROLE_ARN    = "arn:aws:iam::341894770476:instance-profile/ecsInstanceRole"
+	ECS_ROLE_NAME   = "ecsInstanceRole"
+	VPC_ID          = "vpc-0fbca88fc6fab7a0f"
+	SECURITY_GROUP  = "sg-01a8e31f04b83e53d"
+	CLUSTER_NAME    = "pull-pulumi-cluster"
+	SERVICE_NAME    = "pull-pulumi-service"
 )
+
+func randomTag() string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+	rand.Seed(time.Now().UnixNano())
+
+	b := make([]rune, 10)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+
+	return string(b)
+}
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
+		customTag := randomTag()
+
 		tags := pulumi.StringMap{
 			"map-migrated": pulumi.String("d-server-01068mdjl5jze3"),
 		}
 
-		encodedUserData := pulumi.All("pull-pulumi-cluster").ApplyT(func(args []interface{}) (string, error) {
+		encodedUserData := pulumi.All("pull-pulumi-cluster" + "-" + customTag).ApplyT(func(args []interface{}) (string, error) {
 			userData := "#!bin/bash\necho ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config;"
 			return base64.StdEncoding.EncodeToString([]byte(userData)), nil
 		}).(pulumi.StringOutput)
 
-		instanceProfile, err := iam.NewInstanceProfile(ctx, "pull-pulumi-instance-profile", &iam.InstanceProfileArgs{
-			Name: pulumi.String("pull-pulumi-instance-profile"),
+		instanceProfile, err := iam.NewInstanceProfile(ctx, "pull-pulumi-instance-profile"+"-"+customTag, &iam.InstanceProfileArgs{
+			Name: pulumi.String("pull-pulumi-instance-profile" + customTag),
 			Role: pulumi.String(ECS_ROLE_NAME),
 			Tags: tags,
 		})
@@ -45,8 +61,8 @@ func main() {
 			return err
 		}
 
-		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template", &ec2.LaunchTemplateArgs{
-			Name:         pulumi.String("pull-pulumi-launch-template"),
+		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template"+"-"+customTag, &ec2.LaunchTemplateArgs{
+			Name:         pulumi.String("pull-pulumi-launch-template" + "-" + customTag),
 			ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"),
 			InstanceType: pulumi.String("t2.small"),
 			UserData:     encodedUserData,
@@ -63,7 +79,7 @@ func main() {
 			return err
 		}
 
-		ec2.NewInstance(ctx, "pull-pulumi-instance", &ec2.InstanceArgs{
+		ec2.NewInstance(ctx, "pull-pulumi-instance"+"-"+customTag, &ec2.InstanceArgs{
 			LaunchTemplate: ec2.InstanceLaunchTemplateArgs{
 				Id:      launchTemplate.ID(),
 				Version: pulumi.String("$Latest"),
@@ -71,8 +87,8 @@ func main() {
 		})
 
 		// Create ECS cluster
-		cluster, err := ecs.NewCluster(ctx, CLUSTER_NAME, &ecs.ClusterArgs{
-			Name: pulumi.String(CLUSTER_NAME),
+		cluster, err := ecs.NewCluster(ctx, CLUSTER_NAME+"-"+customTag, &ecs.ClusterArgs{
+			Name: pulumi.String(CLUSTER_NAME + "-" + customTag),
 			Tags: tags,
 		})
 		if err != nil {
@@ -80,7 +96,8 @@ func main() {
 		}
 
 		// Create Service & Task definition in ECS cluster
-		awsxEcs.NewEC2Service(ctx, SERVICE_NAME, &awsxEcs.EC2ServiceArgs{
+		awsxEcs.NewEC2Service(ctx, SERVICE_NAME+customTag, &awsxEcs.EC2ServiceArgs{
+			Name:         pulumi.String(SERVICE_NAME + customTag),
 			Cluster:      cluster.Arn,
 			DesiredCount: pulumi.Int(1),
 			NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
