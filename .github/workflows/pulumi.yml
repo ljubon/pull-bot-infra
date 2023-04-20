@@ -1,6 +1,7 @@
 name: Pulumi
 on: 
-  push
+  push:
+    branches: []
   workflow_dispatch:
     inputs:
       action:
