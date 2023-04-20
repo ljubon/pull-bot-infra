@@ -53,7 +53,6 @@ jobs:
           LABEL: ${{ github.event.inputs.label }}
           OWNER: ${{ github.event.repository.owner.login }}
           REPO: ${{ github.event.repository.name }}
-        working-directory: pulumi
         run: |
           cd aws
           case ${{ github.event.inputs.action }} in
