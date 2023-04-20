@@ -53,8 +53,7 @@ jobs:
           LABEL: ${{ github.event.inputs.label }}
           OWNER: ${{ github.event.repository.owner.login }}
           REPO: ${{ github.event.repository.name }}
-        run: |
-          cd aws
+        run: 
           case ${{ github.event.inputs.action }} in
             'requested')
               cp ../../ilgpu/.github/workflows/runners/config.yaml Pulumi.$PULUMI_STACK_NAME.yaml
@@ -68,6 +67,5 @@ jobs:
               pulumi stack select $PULUMI_STACK_NAME
               pulumi destroy
               pulumi stack rm
-              npm run cleanup-runners $OWNER $REPO $LABEL
               ;;
           esac
