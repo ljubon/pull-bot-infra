@@ -2,27 +2,6 @@ name: Pulumi
 on: 
   push:
     branches: []
-  workflow_dispatch:
-    inputs:
-      action:
-        description: 'Whether workflows is requested or completed'
-        required: true
-        type: choice
-        options:
-        - requested
-        - completed
-      run_id:
-        description: 'Id of the job that triggered the run'
-        required: true
-      job_id:
-        description: 'Id of the job that triggered the run'
-        required: true
-      run_attempt:
-        description: 'Run attempt'
-        required: true
-      label:
-        description: 'Job label'
-        required: true
 jobs:
   update:
     name: Update
@@ -49,23 +28,5 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
           PULUMI_SKIP_CONFIRMATIONS: "true"
           PULUMI_SKIP_UPDATE_CHECK: "true"
-          PULUMI_STACK_NAME: pull-${{ github.event.inputs.job_id }}
-          LABEL: ${{ github.event.inputs.label }}
-          OWNER: ${{ github.event.repository.owner.login }}
-          REPO: ${{ github.event.repository.name }}
         run: 
-          case ${{ github.event.inputs.action }} in
-            'requested')
-              cp ../../ilgpu/.github/workflows/runners/config.yaml Pulumi.$PULUMI_STACK_NAME.yaml
-              pulumi stack init $PULUMI_STACK_NAME
-              pulumi config set labels $LABEL
-              pulumi config set owner $OWNER
-              pulumi config set repo $REPO
-              pulumi update --diff
-              ;;
-            'completed')
-              pulumi stack select $PULUMI_STACK_NAME
-              pulumi destroy
-              pulumi stack rm
-              ;;
-          esac
+          pulumi preview
