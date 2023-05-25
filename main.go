@@ -39,7 +39,7 @@ func main() {
 		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template", &ec2.LaunchTemplateArgs{
 			Name:         pulumi.String("pull-pulumi-launch-template"),
 			ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"),
-			InstanceType: pulumi.String("t2.small"),
+			InstanceType: pulumi.String("t2.medium"),
 			UserData:     encodedUserData,
 			KeyName:      pulumi.String("pullbot"),
 			VpcSecurityGroupIds: pulumi.StringArray{
@@ -59,6 +59,7 @@ func main() {
 				Id:      launchTemplate.ID(),
 				Version: pulumi.String("$Latest"),
 			},
+			Tags: tags,
 		})
 
 		// Create ECS cluster
@@ -91,8 +92,8 @@ func main() {
 			TaskDefinitionArgs: &awsxEcs.EC2ServiceTaskDefinitionArgs{
 				Container: &awsxEcs.TaskDefinitionContainerDefinitionArgs{
 					Image:     pulumi.String(PULL_CONTAINER),
-					Cpu:       pulumi.Int(512),
-					Memory:    pulumi.Int(1024),
+					Cpu:       pulumi.Int(1024),
+					Memory:    pulumi.Int(2048),
 					Essential: pulumi.Bool(true),
 					Secrets: awsxEcs.TaskDefinitionSecretArray{
 						awsxEcs.TaskDefinitionSecretArgs{
