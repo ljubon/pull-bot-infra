@@ -1,8 +1,8 @@
-name: CI
+name: IaC - deploy
 on: 
   push:
     branches:
-      - create-workflow
+      - main
 
 jobs:
   update:
