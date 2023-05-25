@@ -92,7 +92,7 @@ func main() {
 				Container: &awsxEcs.TaskDefinitionContainerDefinitionArgs{
 					Image:     pulumi.String(PULL_CONTAINER),
 					Cpu:       pulumi.Int(512),
-					Memory:    pulumi.Int(512),
+					Memory:    pulumi.Int(1024),
 					Essential: pulumi.Bool(true),
 					Secrets: awsxEcs.TaskDefinitionSecretArray{
 						awsxEcs.TaskDefinitionSecretArgs{
