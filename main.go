@@ -7,7 +7,7 @@ import (
 
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
-	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/iam"
+
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
 	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -27,42 +27,19 @@ const (
 	SERVICE_NAME    = "pull-pulumi-service"
 )
 
-func randomTag() string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-	rand.Seed(time.Now().UnixNano())
-
-	b := make([]rune, 10)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-
-	return string(b)
-}
-
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
-		customTag := randomTag()
-
 		tags := pulumi.StringMap{
 			"map-migrated": pulumi.String("d-server-01068mdjl5jze3"),
 		}
 
-		encodedUserData := pulumi.All("pull-pulumi-cluster" + "-" + customTag).ApplyT(func(args []interface{}) (string, error) {
+		encodedUserData := pulumi.All("pull-pulumi-cluster").ApplyT(func(args []interface{}) (string, error) {
 			userData := "#!bin/bash\necho ECS_CLUSTER=pull-pulumi-cluster >> /etc/ecs/ecs.config;"
 			return base64.StdEncoding.EncodeToString([]byte(userData)), nil
 		}).(pulumi.StringOutput)
 
-		instanceProfile, err := iam.NewInstanceProfile(ctx, "pull-pulumi-instance-profile"+"-"+customTag, &iam.InstanceProfileArgs{
-			Name: pulumi.String("pull-pulumi-instance-profile" + customTag),
-			Role: pulumi.String(ECS_ROLE_NAME),
-			Tags: tags,
-		})
-		if err != nil {
-			return err
-		}
-
-		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template"+"-"+customTag, &ec2.LaunchTemplateArgs{
-			Name:         pulumi.String("pull-pulumi-launch-template" + "-" + customTag),
+		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template", &ec2.LaunchTemplateArgs{
+			Name:         pulumi.String("pull-pulumi-launch-template"),
 			ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"),
 			InstanceType: pulumi.String("t2.small"),
 			UserData:     encodedUserData,
@@ -71,7 +48,7 @@ func main() {
 				pulumi.String(SECURITY_GROUP),
 			},
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileArgs{
-				Arn: instanceProfile.Arn,
+				Arn: pulumi.String(ECS_ROLE_ARN),
 			},
 			Tags: tags,
 		})
@@ -79,7 +56,7 @@ func main() {
 			return err
 		}
 
-		ec2.NewInstance(ctx, "pull-pulumi-instance"+"-"+customTag, &ec2.InstanceArgs{
+		ec2.NewInstance(ctx, "pull-pulumi-instance", &ec2.InstanceArgs{
 			LaunchTemplate: ec2.InstanceLaunchTemplateArgs{
 				Id:      launchTemplate.ID(),
 				Version: pulumi.String("$Latest"),
@@ -87,8 +64,8 @@ func main() {
 		})
 
 		// Create ECS cluster
-		cluster, err := ecs.NewCluster(ctx, CLUSTER_NAME+"-"+customTag, &ecs.ClusterArgs{
-			Name: pulumi.String(CLUSTER_NAME + "-" + customTag),
+		cluster, err := ecs.NewCluster(ctx, CLUSTER_NAME, &ecs.ClusterArgs{
+			Name: pulumi.String(CLUSTER_NAME),
 			Tags: tags,
 		})
 		if err != nil {
@@ -96,8 +73,8 @@ func main() {
 		}
 
 		// Create Service & Task definition in ECS cluster
-		awsxEcs.NewEC2Service(ctx, SERVICE_NAME+customTag, &awsxEcs.EC2ServiceArgs{
-			Name:         pulumi.String(SERVICE_NAME + customTag),
+		awsxEcs.NewEC2Service(ctx, SERVICE_NAME, &awsxEcs.EC2ServiceArgs{
+			Name:         pulumi.String(SERVICE_NAME),
 			Cluster:      cluster.Arn,
 			DesiredCount: pulumi.Int(1),
 			NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
