@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"math/rand"
-	"time"
 
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
