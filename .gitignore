@@ -10,6 +10,8 @@
 # But not these files...
 !/.gitignore
 
+.env
+
 !*.go
 !go.sum
 !go.mod
