@@ -14,7 +14,7 @@ import (
 const (
 	PULL_CONTAINER  = "ghcr.io/ljubon/pull/pull:latest"
 	BUCKET          = "arn:aws:s3:::pullbot-envs/.env"
-	PRIVATE_KEY_ARN = "arn:aws:secretsmanager:us-east-1:341894770476:secret:PULL_PRIVATE_KEY-dZhI2J"
+	PRIVATE_KEY_ARN = "arn:aws:secretsmanager:us-east-1:341894770476:secret:LJUBOOPS_PRIVATE_KEY_ORIGINAL-LqUO7g" // ljuboops private key for github app
 	TASK_ROLE_ARN   = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
 	TASK_ROLE_NAME  = "ecsTaskExecutionRole"
 	ECS_ROLE_ARN    = "arn:aws:iam::341894770476:instance-profile/ecsInstanceRole"
@@ -115,6 +115,7 @@ func main() {
 						},
 					},
 				},
+				NetworkMode: pulumi.String("host"), // NOTE: When deploying fresh infra, deploy with commenting this line, after deploy enable this mode
 				ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
 					RoleArn: pulumi.String(TASK_ROLE_ARN),
 				},
