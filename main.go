@@ -115,7 +115,7 @@ func main() {
 						},
 					},
 				},
-				NetworkMode: pulumi.String("host"), // NOTE: When deploying fresh infra, deploy with commenting this line, after deploy enable this mode
+				// NetworkMode: pulumi.String("host"), // NOTE: When deploying fresh infra, deploy with commenting this line, after deploy enable this mode
 				ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
 					RoleArn: pulumi.String(TASK_ROLE_ARN),
 				},
