@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
-
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
 	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -22,7 +22,7 @@ const (
 	VPC_ID          = "vpc-0fbca88fc6fab7a0f"
 	SECURITY_GROUP  = "sg-01a8e31f04b83e53d"
 	CLUSTER_NAME    = "pull-pulumi-cluster"
-	SERVICE_NAME    = "pull-pulumi-service"
+	SERVICE_NAME    = "service"
 )
 
 func main() {
@@ -71,8 +71,11 @@ func main() {
 			return err
 		}
 
+		// NOTE: Make sure to change `v1` to next version when changing something of this service
+		// This is needed so that we replace whole service
+		serviceName := fmt.Sprintf("%s-v1", SERVICE_NAME)
 		// Create Service & Task definition in ECS cluster
-		awsxEcs.NewEC2Service(ctx, SERVICE_NAME, &awsxEcs.EC2ServiceArgs{
+		awsxEcs.NewEC2Service(ctx, serviceName, &awsxEcs.EC2ServiceArgs{
 			Name:         pulumi.String(SERVICE_NAME),
 			Cluster:      cluster.Arn,
 			DesiredCount: pulumi.Int(1),
@@ -115,13 +118,20 @@ func main() {
 						},
 					},
 				},
-				// NetworkMode: pulumi.String("host"), // NOTE: When deploying fresh infra, deploy with commenting this line, after deploy enable this mode
+				// NOTE: When deploying fresh infra, deploy with commenting this line, after deploy enable this mode
+				NetworkMode: pulumi.String("host"),
+
 				ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
 					RoleArn: pulumi.String(TASK_ROLE_ARN),
 				},
 			},
 			Tags: tags,
-		})
+		},
+			pulumi.DeleteBeforeReplace(true),
+			pulumi.Aliases([]pulumi.Alias{
+				{Type: pulumi.String("awsx:x:ecs:EC2Service"), Name: pulumi.String(serviceName)},
+			}),
+		)
 
 		return nil
 	})

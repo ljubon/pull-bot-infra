@@ -1,5 +1,5 @@
 ---
-name: IaC - preview
+name: IaC lifce cycle
 
 on: 
   pull_request:
@@ -55,7 +55,7 @@ jobs:
           stack-name: dev
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: true
+          refresh: false
           color: always
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
@@ -74,7 +74,7 @@ jobs:
           stack-name: dev
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: true
+          refresh: false
           color: always
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
