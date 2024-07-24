@@ -38,7 +38,8 @@ func main() {
 
 		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template", &ec2.LaunchTemplateArgs{
 			Name:         pulumi.String("pull-pulumi-launch-template"),
-			ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"),
+			// ImageId:      pulumi.String("ami-0c76be34ffbfb0b14"), 		// amzn2-ami-ecs-hvm-2.0.20230321-x86_64-ebs
+			ImageId:      pulumi.String("ami-0e771da97cb597c23"), 	// amzn2-ami-ecs-hvm-2.0.20240227-x86_64-ebs
 			InstanceType: pulumi.String("t2.medium"),
 			UserData:     encodedUserData,
 			KeyName:      pulumi.String("pullbot"),
