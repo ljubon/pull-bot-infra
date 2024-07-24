@@ -56,7 +56,7 @@ jobs:
           stack-name: dev
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: false
+          refresh: true # test
           color: always
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
