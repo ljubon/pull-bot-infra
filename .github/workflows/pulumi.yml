@@ -1,18 +1,18 @@
 ---
-name: IaC lifce cycle
+name: IaC - Pull Bot
 
 on: 
-  pull_request:
   workflow_dispatch:
     inputs:
       action:
         type: choice
         description: Select Pulumi actions
         default: preview
+        required: true
         options: 
-        - preview
-        - up
-        - destroy
+          - preview
+          - up
+          - destroy
       stack_name:
         type: string
         description: Pulumi stack name
@@ -50,35 +50,35 @@ jobs:
       - uses: pulumi/actions@v5
         name: Show preview ✨
         id: pulumi_preview
-        if: ${{ inputs.action }} == 'preview' || github.event_name == 'pull_request'
+        if: ${{ github.event.inputs.action == 'preview' }}
         with:
           command: preview
-          stack-name: ${{ inputs.stack_name }}
+          stack-name: ${{ github.event.inputs.stack_name }}
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: ${{ inputs.refresh }}
+          refresh: ${{ github.event.inputs.refresh }}
           color: always
 
       - uses: pulumi/actions@v5
         name: Applying infrastructure 🚀
         id: pulumi_up
-        if: ${{ inputs.action }} == 'up'
+        if: ${{ github.event.inputs.action == 'up' }}
         with:
           command: up
-          stack-name: ${{ inputs.stack_name }}
+          stack-name: ${{ github.event.inputs.stack_name }}
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: ${{ inputs.refresh }}
+          refresh: ${{ github.event.inputs.refresh }}
           color: always
 
       - uses: pulumi/actions@v5
         name: Destroy infrastructure 💀
         id: pulumi_destroy
-        if: ${{ inputs.action }} == 'destroy'
+        if: ${{ github.event.inputs.action == 'destroy' }}
         with:
           command: destroy
-          stack-name: ${{ inputs.stack_name }}
+          stack-name: ${{ github.event.inputs.stack_name }}
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: ${{ inputs.refresh }}
+          refresh: ${{ github.event.inputs.refresh }}
           color: always

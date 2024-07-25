@@ -28,7 +28,7 @@ const (
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 		tags := pulumi.StringMap{
-			"map-migrated": pulumi.String("d-server-01068mdjl5jze3"),
+			"map-migrated": pulumi.String("d-server-01068mdjl5jze3"), // This is required for INFRA team to manage costs
 		}
 
 		encodedUserData := pulumi.All("pull-pulumi-cluster").ApplyT(func(args []interface{}) (string, error) {
@@ -36,9 +36,10 @@ func main() {
 			return base64.StdEncoding.EncodeToString([]byte(userData)), nil
 		}).(pulumi.StringOutput)
 
+		// Create Launch template for EC2 instance for our cluster
 		launchTemplate, err := ec2.NewLaunchTemplate(ctx, "pull-pulumi-launch-template", &ec2.LaunchTemplateArgs{
 			Name:         pulumi.String("pull-pulumi-launch-template"),
-			ImageId:      pulumi.String("ami-0e771da97cb597c23"), 	// amzn2-ami-ecs-hvm-2.0.20240227-x86_64-ebs
+			ImageId:      pulumi.String("ami-0e771da97cb597c23"), // amzn2-ami-ecs-hvm-2.0.20240227-x86_64-ebs
 			InstanceType: pulumi.String("t2.medium"),
 			UserData:     encodedUserData,
 			KeyName:      pulumi.String("pullbot"),
@@ -54,6 +55,8 @@ func main() {
 			return err
 		}
 
+		// Create EC2 instance with previously created launch template
+		// Once EC2 is running, the agent will try join the ECS cluster and it will be shown under infrastructure tab
 		ec2.NewInstance(ctx, "pull-pulumi-instance", &ec2.InstanceArgs{
 			LaunchTemplate: ec2.InstanceLaunchTemplateArgs{
 				Id:      launchTemplate.ID(),
@@ -71,8 +74,11 @@ func main() {
 			return err
 		}
 
-		// NOTE: Make sure to change `v1` to next version when changing something of this service
-		// This is needed so that we replace whole service
+		/*
+			Creates a service which will deploy `DesiredCount` number of services with our container
+			NOTE: Make sure to change `v1` to next version when changing something of this service
+			This is needed so that we replace whole service
+		**/
 		serviceName := fmt.Sprintf("%s-v1", SERVICE_NAME)
 		// Create Service & Task definition in ECS cluster
 		awsxEcs.NewEC2Service(ctx, serviceName, &awsxEcs.EC2ServiceArgs{
@@ -84,6 +90,7 @@ func main() {
 					pulumi.String(SECURITY_GROUP),
 				},
 				Subnets: pulumi.StringArray{
+					// When fresh deploying to new region/account add created subnets
 					pulumi.String("subnet-02c6606e6327a2524"),
 					pulumi.String("subnet-0e8a610a8547bd5a1"),
 					pulumi.String("subnet-026cf2674f7b9e008"),
@@ -119,7 +126,7 @@ func main() {
 					},
 				},
 				// NOTE: When deploying fresh infra, deploy with commenting this line, after deploy enable this mode
-				NetworkMode: pulumi.String("host"),
+				// NetworkMode: pulumi.String("host"),
 
 				ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
 					RoleArn: pulumi.String(TASK_ROLE_ARN),
