@@ -21,10 +21,6 @@ on:
         options: 
           - dev
           - prd
-      stack_name:
-        type: string
-        description: Pulumi stack name
-        default: dev
       refresh:
         type: boolean
         description: Pulumi refresh
@@ -32,8 +28,10 @@ on:
 
 jobs:
   pull-bot-infra-dev:
-    name: Pull-Bot Infra
+    name: Pull-Bot - Dev
     runs-on: ubuntu-latest
+    if: ${{ inputs.env == 'dev' }}
+    environment: gross-devops-${{ inputs.env }}
     env:
       PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
       PULUMI_SKIP_CONFIRMATIONS: "true"
@@ -60,7 +58,7 @@ jobs:
         if: ${{ github.event.inputs.action == 'preview' }}
         with:
           command: preview
-          stack-name: ${{ github.event.inputs.stack_name }}
+          stack-name: dev
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
           refresh: ${{ github.event.inputs.refresh }}
@@ -72,7 +70,7 @@ jobs:
         if: ${{ github.event.inputs.action == 'up' }}
         with:
           command: up
-          stack-name: ${{ github.event.inputs.stack_name }}
+          stack-name: dev
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
           refresh: ${{ github.event.inputs.refresh }}
@@ -84,14 +82,14 @@ jobs:
         if: ${{ github.event.inputs.action == 'destroy' }}
         with:
           command: destroy
-          stack-name: ${{ github.event.inputs.stack_name }}
+          stack-name: dev
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
           refresh: ${{ github.event.inputs.refresh }}
           color: always
 
   pull-bot-infra-prd:
-    name: Pull-Bot Infra
+    name: Pull-Bot - PRD
     runs-on: ubuntu-latest
     environment: gross-devops-${{ inputs.env }}
     if: ${{ inputs.env == 'prd' }}
