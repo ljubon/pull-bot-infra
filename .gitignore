@@ -11,6 +11,7 @@
 !/.gitignore
 
 .env
+HOW_TO.md
 
 !*.go
 !go.sum

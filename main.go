@@ -7,22 +7,41 @@ import (
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v5/go/aws/ecs"
 	"github.com/pulumi/pulumi-awsx/sdk/go/awsx/awsx"
-	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
+	"github.com/pulumi/pulumi-aws/sdk/v4/go/aws/cloudwatch"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	awsxEcs "github.com/pulumi/pulumi-awsx/sdk/go/awsx/ecs"
 )
 
 const (
-	PULL_CONTAINER  = "ghcr.io/ljubon/pull/pull:latest"
-	BUCKET          = "arn:aws:s3:::pullbot-envs/.env"
-	PRIVATE_KEY_ARN = "arn:aws:secretsmanager:us-east-1:341894770476:secret:LJUBOOPS_PRIVATE_KEY_ORIGINAL-LqUO7g" // ljuboops private key for github app
-	TASK_ROLE_ARN   = "arn:aws:iam::341894770476:role/ecsTaskExecutionRole"
+	// DEV arn:aws:s3:::pullbot-envs/.env
+	// PRD arn:aws:s3:::pullbot-envs-prd/.env
+	BUCKET          = "arn:aws:s3:::pullbot-envs-prd/.env" 
+
+	// Private key generated from github app
+	// DEV arn:aws:secretsmanager:us-east-1:341894770476:secret:LJUBOOPS_PRIVATE_KEY_ORIGINAL-LqUO7g
+	// PRD arn:aws:secretsmanager:us-east-1:305636253817:secret:ljuboops-app-private-key-xD2xvX
+	PRIVATE_KEY_ARN = "arn:aws:secretsmanager:us-east-1:305636253817:secret:ljuboops-app-private-key-xD2xvX"
+
+	// DEV arn:aws:iam::341894770476:role/ecsTaskExecutionRole
+	// PRD arn:aws:iam::305636253817:role/ecsTaskExecutionRole
+	TASK_ROLE_ARN   = "arn:aws:iam::305636253817:role/ecsTaskExecutionRole"
 	TASK_ROLE_NAME  = "ecsTaskExecutionRole"
-	ECS_ROLE_ARN    = "arn:aws:iam::341894770476:instance-profile/ecsInstanceRole"
+
+	// DEV arn:aws:iam::341894770476:instance-profile/ecsInstanceRole
+	// PRD arn:aws:iam::305636253817:instance-profile/ecsInstanceRole
+	ECS_ROLE_ARN    = "arn:aws:iam::305636253817:instance-profile/ecsInstanceRole"
 	ECS_ROLE_NAME   = "ecsInstanceRole"
-	VPC_ID          = "vpc-0fbca88fc6fab7a0f"
-	SECURITY_GROUP  = "sg-01a8e31f04b83e53d"
+
+	// [DEFAULT]	DEV vpc-0fbca88fc6fab7a0f
+	// 						PRD vpc-0b61d95d73ca61075
+	// VPC_ID          = "vpc-0fbca88fc6fab7a0f"
+	// [DEFAULT]	DEV sg-01a8e31f04b83e53d
+	// 						PRD sg-0b61d95d73ca61075 
+	// SECURITY_GROUP  = "sg-01a8e31f04b83e53d"
+
 	CLUSTER_NAME    = "pull-pulumi-cluster"
 	SERVICE_NAME    = "service"
+	PULL_CONTAINER  = "ghcr.io/ljubon/pull/pull:latest"
 )
 
 func main() {
@@ -43,9 +62,9 @@ func main() {
 			InstanceType: pulumi.String("t2.medium"),
 			UserData:     encodedUserData,
 			KeyName:      pulumi.String("pullbot"),
-			VpcSecurityGroupIds: pulumi.StringArray{
-				pulumi.String(SECURITY_GROUP),
-			},
+			// VpcSecurityGroupIds: pulumi.StringArray{
+			// 	pulumi.String(SECURITY_GROUP),
+			// },
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileArgs{
 				Arn: pulumi.String(ECS_ROLE_ARN),
 			},
@@ -74,6 +93,12 @@ func main() {
 			return err
 		}
 
+		// Create a new CloudWatch Log Group
+		cloudwatch.NewLogGroup(ctx, "serviceV1LogGroup", &cloudwatch.LogGroupArgs{
+				Name: pulumi.String("service-v1"),
+				RetentionInDays: pulumi.Int(7),
+		})
+
 		/*
 			Creates a service which will deploy `DesiredCount` number of services with our container
 			NOTE: Make sure to change `v1` to next version when changing something of this service
@@ -85,26 +110,34 @@ func main() {
 			Name:         pulumi.String(SERVICE_NAME),
 			Cluster:      cluster.Arn,
 			DesiredCount: pulumi.Int(1),
-			NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
-				SecurityGroups: pulumi.StringArray{
-					pulumi.String(SECURITY_GROUP),
-				},
-				Subnets: pulumi.StringArray{
-					// When fresh deploying to new region/account add created subnets
-					pulumi.String("subnet-02c6606e6327a2524"),
-					pulumi.String("subnet-0e8a610a8547bd5a1"),
-					pulumi.String("subnet-026cf2674f7b9e008"),
-					pulumi.String("subnet-06999ccd7f8a4d538"),
-					pulumi.String("subnet-0a278c1c001e0608e"),
-					pulumi.String("subnet-0ac5a47ac46d2a3d8"),
-				},
-			},
+			// NetworkConfiguration: ecs.ServiceNetworkConfigurationArgs{
+				// SecurityGroups: pulumi.StringArray{
+				// 	pulumi.String(SECURITY_GROUP),
+				// },
+				// Subnets: pulumi.StringArray{
+				// 	// When fresh deploying to new region/account add created subnets
+				// 	pulumi.String("subnet-02c6606e6327a2524"),
+				// 	pulumi.String("subnet-0e8a610a8547bd5a1"),
+				// 	pulumi.String("subnet-026cf2674f7b9e008"),
+				// 	pulumi.String("subnet-06999ccd7f8a4d538"),
+				// 	pulumi.String("subnet-0a278c1c001e0608e"),
+				// 	pulumi.String("subnet-0ac5a47ac46d2a3d8"),
+				// },
+			// },
 			TaskDefinitionArgs: &awsxEcs.EC2ServiceTaskDefinitionArgs{
 				Container: &awsxEcs.TaskDefinitionContainerDefinitionArgs{
 					Image:     pulumi.String(PULL_CONTAINER),
 					Cpu:       pulumi.Int(1024),
 					Memory:    pulumi.Int(2048),
 					Essential: pulumi.Bool(true),
+					LogConfiguration: &awsxEcs.TaskDefinitionLogConfigurationArgs{
+						LogDriver: pulumi.String("awslogs"),
+						Options: pulumi.StringMap{
+							"awslogs-group":         pulumi.String("service-v1"),
+							"awslogs-region":        pulumi.String("us-east-1"),
+							"awslogs-stream-prefix": pulumi.String("container"),
+						},
+					},
 					Secrets: awsxEcs.TaskDefinitionSecretArray{
 						awsxEcs.TaskDefinitionSecretArgs{
 							Name:      pulumi.String("PRIVATE_KEY"),
@@ -126,7 +159,7 @@ func main() {
 					},
 				},
 				// NOTE: When deploying fresh infra, deploy with commenting this line, after deploy enable this mode
-				// NetworkMode: pulumi.String("host"),
+				NetworkMode: pulumi.String("host"),
 
 				ExecutionRole: &awsx.DefaultRoleWithPolicyArgs{
 					RoleArn: pulumi.String(TASK_ROLE_ARN),
