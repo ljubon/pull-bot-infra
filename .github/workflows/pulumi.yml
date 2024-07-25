@@ -1,16 +1,35 @@
 ---
 name: IaC lifce cycle
 
-
 on: 
   pull_request:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        description: Select Pulumi actions
+        default: preview
+        options: 
+        - preview
+        - up
+        - destroy
+      stack_name:
+        type: string
+        description: Pulumi stack name
+        default: dev
+      refresh:
+        type: boolean
+        description: Pulumi refresh
+        default: false
+
+env:
+  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+  PULUMI_SKIP_CONFIRMATIONS: "true"
+  PULUMI_SKIP_UPDATE_CHECK: "true"
 
 jobs:
-  update:
-    name: Pulumi
+  pull-bot-infra:
+    name: Pull-Bot Infra
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +41,7 @@ jobs:
         run: go mod download
 
       - name: Configure AWS Credentials 🔑
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-region: ${{ secrets.AWS_REGION }}
@@ -31,53 +50,35 @@ jobs:
       - uses: pulumi/actions@v5
         name: Show preview ✨
         id: pulumi_preview
-        if: github.event_name == 'pull_request'
+        if: ${{ inputs.action }} == 'preview' || github.event_name == 'pull_request'
         with:
           command: preview
-          stack-name: dev
+          stack-name: ${{ inputs.stack_name }}
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: true
+          refresh: ${{ inputs.refresh }}
           color: always
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          PULUMI_SKIP_CONFIRMATIONS: "true"
-          PULUMI_SKIP_UPDATE_CHECK: "true"
 
       - uses: pulumi/actions@v5
         name: Applying infrastructure 🚀
         id: pulumi_up
-        if: |
-          github.event_name != 'pull_request' &&
-          github.ref == 'refs/heads/main' &&
-          !contains(github.event.head_commit.message, '20230810')
+        if: ${{ inputs.action }} == 'up'
         with:
           command: up
-          stack-name: dev
+          stack-name: ${{ inputs.stack_name }}
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: false
+          refresh: ${{ inputs.refresh }}
           color: always
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          PULUMI_SKIP_CONFIRMATIONS: "true"
-          PULUMI_SKIP_UPDATE_CHECK: "true"
 
       - uses: pulumi/actions@v5
         name: Destroy infrastructure 💀
         id: pulumi_destroy
-        if: |
-          github.event_name != 'pull_request' &&
-          github.ref == 'refs/heads/main' &&
-          contains(github.event.head_commit.message, '20230810')
+        if: ${{ inputs.action }} == 'destroy'
         with:
           command: destroy
-          stack-name: dev
+          stack-name: ${{ inputs.stack_name }}
           cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
           comment-on-pr: true
-          refresh: false
+          refresh: ${{ inputs.refresh }}
           color: always
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          PULUMI_SKIP_CONFIRMATIONS: "true"
-          PULUMI_SKIP_UPDATE_CHECK: "true"
