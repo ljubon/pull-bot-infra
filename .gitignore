@@ -17,6 +17,7 @@
 !go.mod
 
 !README.md
+!GitHub_App.md
 !LICENSE
 
 !*.yml

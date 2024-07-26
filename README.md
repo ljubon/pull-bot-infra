@@ -4,7 +4,7 @@ IaC implementation for self-hosting pull bot on AWS.
 
 It uses a Docker image (latest tag) built from <https://github.com/ljubon/pull> which has a fix to have a GitHub App different then `pull[bot]` which allows us to adjust GitHub App name with providing `.env` file.
 
-The current implementation allows us one instance/deploy of pull-bot-infra which will use the given GitHub App.
+The current implementation allows us one instance/deployment of pull-bot-infra which will use the given GitHub App.
 
 The PR to upstream: <https://github.com/wei/pull/pull/588>
 
@@ -21,7 +21,7 @@ Login to Account ID `isc-login` and your personal account, then switch role to `
 
 __NOTE__ This should be manually created before running IaC code.
 
-#### Create IAM user `pull-bot`
+#### Create an IAM user `pull-bot`
 
 - IAM -> Users -> Add user
 - No console access
@@ -35,15 +35,19 @@ __NOTE__ This should be manually created before running IaC code.
 - S3 -> Create bucket
 - Name: `pull-bot-infra-backend-$env`
 - Public access allowed
-- To verify bucket exists
+- To verify bucket exists run CLI locally
 
   ```bash
   aws s3 ls pull-bot-infra-backend-$env
   ```
 
+#### Create GitHub
+
+Follow the steps in the [GitHub App configuration](GitHub_App.md) manual.
+
 #### Create bucket pullbot-envs-$env
 
-- Create `.env` file and upload to the bucket (example content below)
+- Create `.env` file and upload it to the bucket (example content below)
 
   ```bash
     APP_ID=120461                   // GitHub App ID used for pull-bot
