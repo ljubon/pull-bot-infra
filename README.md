@@ -2,6 +2,12 @@
 
 IaC implementation for self-hosting pull bot on AWS.
 
+It uses a Docker image (latest tag) built from <https://github.com/ljubon/pull> which has a fix to have a GitHub App different then `pull[bot]` which allows us to adjust GitHub App name with providing `.env` file.
+
+The current implementation allows us one instance/deploy of pull-bot-infra which will use the given GitHub App.
+
+The PR to upstream: <https://github.com/wei/pull/pull/588>
+
 ## AWS information
 
 The infrastructure will be deployed to the `gross-devops-$env` account on AWS.
@@ -91,6 +97,6 @@ Create a secret in AWS secret manager for private key
 - Go to <https://github.com/ljubon/pull-bot-infra/actions/workflows/pulumi.yml>
 - Run workflow
   - Branch: `gross-devops-$env`
+  - Select environment: `gross-devops-$env` (it should be the same as `Branch`)
   - Select Pulumi actions: `preview | up | destroy`
   - Pulumi refresh: `true | false`
-  - Select pulumi stack: `dev` (for now all stacks are created as `dev` stack)
