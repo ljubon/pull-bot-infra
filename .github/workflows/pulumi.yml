@@ -35,6 +35,15 @@
         PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
         PULUMI_SKIP_CONFIRMATIONS: "true"
         PULUMI_SKIP_UPDATE_CHECK: "true"
+        BUCKET: ${{ vars.BUCKET }}
+        AMI_ID: ${{ vars.AMI_ID }}
+        AWS_REGION: ${{ vars.AWS_REGION }}
+        ECS_ROLE_ARN: ${{ vars.ECS_ROLE_ARN }}
+        TASK_ROLE_ARN: ${{ vars.TASK_ROLE_ARN }}
+        TAG_COST_VALUE: ${{ vars.TAG_COST_VALUE }}
+        PULL_CONTAINER: ${{ vars.PULL_CONTAINER }}
+        PRIVATE_KEY_ARN: ${{ vars.PRIVATE_KEY_ARN }}
+
       steps:
         - uses: actions/checkout@v4
         - name: Setup go
