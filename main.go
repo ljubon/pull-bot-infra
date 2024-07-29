@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"fmt"
 	"os"
 
 	"github.com/pulumi/pulumi-aws/sdk/v4/go/aws/cloudwatch"
@@ -78,14 +77,8 @@ func main() {
 			RetentionInDays: pulumi.Int(7),
 		})
 
-		/*
-			Creates a service which will deploy `DesiredCount` number of services with our container
-			NOTE: Make sure to change `v1` to next version when changing something of this service
-			This is needed so that we replace whole service
-		**/
-		serviceName := fmt.Sprintf("%s-v1", "service")
 		// Create Service & Task definition in ECS cluster
-		awsxEcs.NewEC2Service(ctx, serviceName, &awsxEcs.EC2ServiceArgs{
+		awsxEcs.NewEC2Service(ctx, "service-v1", &awsxEcs.EC2ServiceArgs{
 			Name:         pulumi.String("service"),
 			Cluster:      cluster.Arn,
 			DesiredCount: pulumi.Int(1),
@@ -133,7 +126,7 @@ func main() {
 		},
 			pulumi.DeleteBeforeReplace(true),
 			pulumi.Aliases([]pulumi.Alias{
-				{Type: pulumi.String("awsx:x:ecs:EC2Service"), Name: pulumi.String(serviceName)},
+				{Type: pulumi.String("awsx:x:ecs:EC2Service"), Name: pulumi.String("service-v1")},
 			}),
 		)
 
