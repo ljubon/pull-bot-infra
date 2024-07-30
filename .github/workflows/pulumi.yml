@@ -19,8 +19,8 @@
           default: dev
           required: true
           options: 
-            - gross-devops-dev
-            - gross-devops-prd
+            - dev
+            - prd
         refresh:
           type: boolean
           description: Pulumi refresh
