@@ -79,6 +79,7 @@
           with:
             command: up
             stack-name: dev
+            upsert: true
             cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
             comment-on-pr: true
             refresh: ${{ github.event.inputs.refresh }}
@@ -92,6 +93,7 @@
           with:
             command: destroy
             stack-name: dev
+            upsert: true
             cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
             comment-on-pr: true
             refresh: ${{ github.event.inputs.refresh }}
