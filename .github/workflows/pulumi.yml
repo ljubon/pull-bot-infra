@@ -1,0 +1,98 @@
+---
+  name: IaC - Pull Bot
+  
+  on: 
+    workflow_dispatch:
+      inputs:
+        action:
+          type: choice
+          description: Select Pulumi actions
+          default: preview
+          required: true
+          options: 
+            - preview
+            - up
+            - destroy
+        env:
+          type: choice
+          description: Select Environment
+          default: dev
+          required: true
+          options: 
+            - dev
+            - prd
+        refresh:
+          type: boolean
+          description: Pulumi refresh
+          default: false
+  
+  jobs:
+    pull-bot-infra:
+      name: Pull-Bot Infrastructure
+      runs-on: ubuntu-latest
+      environment: ${{ inputs.env }}
+      env:
+        PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+        PULUMI_SKIP_CONFIRMATIONS: "true"
+        PULUMI_SKIP_UPDATE_CHECK: "true"
+        BUCKET: ${{ vars.BUCKET }}
+        AMI_ID: ${{ vars.AMI_ID }}
+        AWS_REGION: ${{ vars.AWS_REGION }}
+        ECS_ROLE_ARN: ${{ vars.ECS_ROLE_ARN }}
+        TASK_ROLE_ARN: ${{ vars.TASK_ROLE_ARN }}
+        TAG_COST_VALUE: ${{ vars.TAG_COST_VALUE }}
+        PULL_CONTAINER: ${{ vars.PULL_CONTAINER }}
+        PRIVATE_KEY_ARN: ${{ vars.PRIVATE_KEY_ARN }}
+
+      steps:
+        - uses: actions/checkout@v4
+        - name: Setup go
+          uses: actions/setup-go@v5
+          with:
+            go-version: '>=1.20.2'
+        - name: Downloading dependencies
+          run: go mod download
+  
+        - name: Configure AWS Credentials 🔑
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-region: ${{ vars.AWS_REGION }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  
+        - uses: pulumi/actions@v5
+          name: Show preview ✨
+          id: pulumi_preview
+          if: ${{ github.event.inputs.action == 'preview' }}
+          with:
+            command: preview
+            stack-name: dev
+            cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
+            comment-on-pr: true
+            refresh: ${{ github.event.inputs.refresh }}
+            color: always
+  
+        - uses: pulumi/actions@v5
+          name: Applying infrastructure 🚀
+          id: pulumi_up
+          if: ${{ github.event.inputs.action == 'up' }}
+          with:
+            command: up
+            stack-name: dev
+            cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
+            comment-on-pr: true
+            refresh: ${{ github.event.inputs.refresh }}
+            color: always
+  
+        - uses: pulumi/actions@v5
+          name: Destroy infrastructure 💀
+          id: pulumi_destroy
+          if: ${{ github.event.inputs.action == 'destroy' }}
+          with:
+            command: destroy
+            stack-name: dev
+            cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
+            comment-on-pr: true
+            refresh: ${{ github.event.inputs.refresh }}
+            color: always
+  

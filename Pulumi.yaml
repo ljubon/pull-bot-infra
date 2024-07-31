@@ -1,0 +1,4 @@
+---
+name: pull-bot-infra
+runtime: go
+description: Run pull bot as a docker container
